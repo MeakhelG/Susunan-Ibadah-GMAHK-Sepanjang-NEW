@@ -235,6 +235,7 @@ Kode Sandi: sepanjang
 * _Host: ${gV('rmHost')}_
 * _MC, Doa: ${gV('rmMcDoa')}_
 * _Kesaksian: ${gV('rmKesaksian')}_
+* _Doa Syafaat: ${document.getElementById('rmDoaSyafaat').value || "Pdt. Benny Lumbantobing"}_
 ${document.getElementById('togglePujianRabu').checked ? `* _Pujian: ${document.getElementById('rmPujian').value.trim() ? document.getElementById('rmPujian').value.trim() + '_' : '_'}\n` : ''}* Firman Tuhan: ${gV('rmFirman')}
 * _Doa Tutup: ${gV('rmDoaTutup')}_
 * _Ucapan Terima kasih & Pengumuman: ${document.getElementById('rmPengumuman').value || "Ketua"}_
