@@ -61,6 +61,9 @@
  *       - renderAdminTable(): Merender baris dan kolom tabel ke dalam HTML
  *       - openFormModal() / closeFormModal() : Kendali UI popup form tambah/edit data
  *       - simpanDataTabel() : Proses penyimpanan (Insert/Update) data admin ke Supabase
+ *       - deleteAdminTableData() : Menghapus data dari tabel Supabase
+ *       - shiftDateString()      : Helper menggeser string tanggal sejumlah hari
+ *       - shiftActiveTableSchedule() : Menggeser seluruh jadwal tabel aktif ±7 hari
  * 
  *   13. AUTOCOMPLETE LAGU
  *       - setupSongAutocomplete() : Algoritma pencarian dan dropdown rekomendasi lagu pintar
@@ -484,7 +487,7 @@ updatePreview();
 
 /* ============================================================
    7. EKSKLUSIVITAS DROPDOWN (Operator / Pianist / Pemimpin Lagu)
-   - Mencegah 1 orang bertugas ganda di 3 posisi sekaligus
+   - Mencegah 1 orang bertugas ganda di 4 posisi sekaligus
    - Normalisasi nama: "Sdr", "Sdra.", "Sdri.", "Sdri" dianggap sama
    ============================================================ */
 
@@ -856,6 +859,10 @@ async function fetchAndFillNextPaSchedule() {
 let lselData = [];
 let aysData = [];
 
+/**
+ * Mengambil seluruh data lagu dari Tabel LSEL (Lagu Sekolah & Evangelisasi Lama)
+ * untuk digunakan pada fitur autocomplete lagu.
+ */
 async function fetchLselData() {
     try {
         const { data, error } = await supabaseClient
@@ -873,6 +880,10 @@ async function fetchLselData() {
     }
 }
 
+/**
+ * Mengambil seluruh data lagu dari Tabel AYS (Adventist Youth Sing)
+ * untuk digunakan pada fitur autocomplete lagu PA.
+ */
 async function fetchAysData() {
     try {
         const { data, error } = await supabaseClient
@@ -993,7 +1004,7 @@ async function handleLogout() {
 }
 
 // ============================================================
-// 12. ADMIN DASHBOARD & CRUD LOGIC (FASE 4)
+// 12. ADMIN DASHBOARD & CRUD LOGIC
 // ============================================================
 
 let currentAdminTab = 'pos';
@@ -1019,7 +1030,7 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
         // Tampilkan Dashboard, sembunyikan Generator
         if (generatorView) generatorView.style.display = 'none';
         if (adminDashboardView) adminDashboardView.style.display = 'flex';
-        
+
         // Lebarkan container untuk admin dashboard
         if (appContainer) appContainer.classList.add('admin-mode');
 
@@ -1160,7 +1171,7 @@ function renderAdminTable() {
             }
         }
 
-        // Ikon panah dua arah ala Data Seluler
+        // Ikon panah dua arah untuk indikator pengurutan
         let sortIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
             <path d="M9 20V4M5 8l4-4 4 4" stroke="${cUp}" style="opacity:${opUp}; transition: all 0.2s ease;"></path>
             <path d="M15 4v16m-4-4 4 4 4-4" stroke="${cDn}" style="opacity:${opDn}; transition: all 0.2s ease;"></path>
@@ -1200,7 +1211,7 @@ function renderAdminTable() {
             }
         });
 
-        // Format aman json
+        // Escape kutip tunggal & ganda agar aman sebagai atribut HTML onclick
         const safeRowJson = JSON.stringify(row).replace(/'/g, "&apos;").replace(/"/g, "&quot;");
 
         rowHTML += `
@@ -1304,7 +1315,7 @@ async function simpanDataTabel() {
                 .update(payload)
                 .eq('Id', currentEditId);
 
-            // Jika PostgreSQL mengamuk karena bilang 'Id' huruf besar tidak ada, tes pakai 'id' huruf kecil
+            // Jika kolom 'Id' tidak ditemukan, fallback ke 'id' huruf kecil
             if (result.error && result.error.message.includes('does not exist')) {
                 result = await supabaseClient
                     .from(config.supabaseTable)
@@ -1341,9 +1352,13 @@ async function simpanDataTabel() {
     }
 }
 
+/**
+ * Menghapus satu baris data dari tabel admin Supabase yang sedang aktif.
+ * Menampilkan konfirmasi SweetAlert2 sebelum menghapus.
+ */
 async function deleteAdminTableData(rowDataStr) {
     if (!rowDataStr) return;
-    
+
     let rowData;
     try {
         rowData = JSON.parse(rowDataStr);
@@ -1351,7 +1366,7 @@ async function deleteAdminTableData(rowDataStr) {
         console.error("Gagal parse data baris:", e);
         return;
     }
-    
+
     const rowId = rowData.Id || rowData.id;
     const config = DB_SCHEMAS[currentAdminTab];
 
@@ -1418,40 +1433,48 @@ async function deleteAdminTableData(rowDataStr) {
     });
 }
 
+/**
+ * Menggeser string tanggal maju/mundur sejumlah hari tertentu.
+ * Mendukung format YYYY-MM-DD, dengan atau tanpa bagian waktu (T / spasi).
+ */
 function shiftDateString(dateStr, days) {
     if (!dateStr) return dateStr;
-    
+
     // Ambil bagian tanggal YYYY-MM-DD
     const partsT = dateStr.split('T');
     const partsSpace = partsT[0].split(' ');
     const datePart = partsSpace[0];
-    
+
     const parts = datePart.split('-');
     if (parts.length !== 3) return dateStr;
-    
+
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
     const day = parseInt(parts[2], 10);
-    
+
     const dateObj = new Date(year, month, day);
     dateObj.setDate(dateObj.getDate() + days);
-    
+
     const newYear = dateObj.getFullYear();
     const newMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
     const newDay = String(dateObj.getDate()).padStart(2, '0');
-    
+
     const newDatePart = `${newYear}-${newMonth}-${newDay}`;
-    
+
     // Pertahankan jam/menit/detik jika ada format aslinya
     if (partsT.length > 1) {
         return newDatePart + 'T' + partsT[1];
     } else if (partsSpace.length > 1) {
         return newDatePart + ' ' + partsSpace[1];
     }
-    
+
     return newDatePart;
 }
 
+/**
+ * Menggeser seluruh tanggal pada tabel admin yang sedang aktif.
+ * Digunakan untuk memajukan atau memundurkan jadwal sebanyak 7 hari.
+ */
 async function shiftActiveTableSchedule(days) {
     if (!currentAdminTableData || currentAdminTableData.length === 0) {
         Swal.fire({
@@ -1464,7 +1487,7 @@ async function shiftActiveTableSchedule(days) {
 
     const config = DB_SCHEMAS[currentAdminTab];
     const directionText = days > 0 ? "MUNDURKAN (tambah 7 hari)" : "MAJUKAN (kurangi 7 hari)";
-    
+
     Swal.fire({
         title: 'Geser Jadwal?',
         text: `Apakah Anda yakin ingin ${directionText} semua jadwal (${currentAdminTableData.length} baris) pada ${config.title}?`,
@@ -1492,7 +1515,7 @@ async function shiftActiveTableSchedule(days) {
                     const rowId = row.Id || row.id;
                     const oldDate = row.Tanggal;
                     const newDate = shiftDateString(oldDate, days);
-                    
+
                     if (oldDate === newDate) return;
 
                     const payload = { Tanggal: newDate };
@@ -1534,7 +1557,7 @@ async function shiftActiveTableSchedule(days) {
                     title: 'Gagal',
                     text: err.message || 'Terjadi kesalahan saat memperbarui database.'
                 });
-                
+
                 // Segarkan kembali data dari server untuk memastikan sinkronisasi UI
                 loadAdminTableData(config.supabaseTable);
             }

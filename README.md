@@ -8,6 +8,7 @@ Aplikasi berbasis web (*Single Page Application*) yang elegan, interaktif, dan r
 - **Aksi Hapus Data Admin:** Penambahan tombol **Hapus** pada baris tabel admin dengan konfirmasi *SweetAlert2* untuk menghapus data langsung dari database Supabase secara aman.
 - **Majukan & Mundurkan Jadwal:** Tombol baru **"Majukan 1 Minggu"** dan **"Mundurkan 1 Minggu"** untuk menggeser tanggal seluruh jadwal di tabel aktif secara massal (paralel) dengan sekali klik.
 - **Tampilan Tabel Full-Screen & Responsif:** Halaman dashboard admin kini otomatis melebar hingga **95%** layar dan sel tabel diatur melipat teks secara rapi (*word-wrap*) untuk mengeliminasi scrollbar horizontal pada desktop.
+- **Refactoring Komentar Kode:** Pembersihan dan pembaruan seluruh komentar di dalam kode sumber (`index.html`, `style.css`, `script.js`) agar lebih akurat menerangkan alur logika, penanganan zona waktu, dan integrasi kolom database Supabase.
 
 ## Fitur Inti
 - **Dashboard Admin Aman & Interaktif:** Panel manajemen data di dalam aplikasi untuk mempermudah edit data, dilindungi oleh autentikasi login terenkripsi berbasis ekosistem *Supabase Auth & Row Level Security* (RLS), serta ditenagai interaksi pop-up mulus dari *SweetAlert2*. Tabel PA dan Sabat Raya terintegrasi penuh ke dalam *Manager* Dasbor.
