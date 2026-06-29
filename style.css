@@ -118,6 +118,13 @@ body {
     flex-direction: column;
     gap: 24px;
     min-height: 100vh;
+    transition: max-width 0.4s ease;
+}
+
+@media (min-width: 1200px) {
+    .app-container.admin-mode {
+        max-width: 95%;
+    }
 }
 
 
@@ -482,6 +489,23 @@ body.light-theme .preview-panel {
 }
 
 .btn-success:active {
+    transform: translateY(0);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border: none;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.4);
+    transform: translateY(-2px);
+}
+
+.btn-danger:active {
     transform: translateY(0);
 }
 
@@ -899,13 +923,14 @@ body.light-theme .admin-panel-header {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
-    white-space: nowrap;
 }
 
 .admin-data-table th, .admin-data-table td {
     padding: 14px 20px;
     text-align: left;
     border-bottom: 1px dashed var(--border-color);
+    white-space: normal;
+    word-break: break-word;
 }
 
 .admin-data-table th {

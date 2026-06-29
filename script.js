@@ -1006,6 +1006,7 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
     const loginBtn = document.getElementById('adminLoginBtn');
     const generatorView = document.getElementById('generatorView');
     const adminDashboardView = document.getElementById('adminDashboardView');
+    const appContainer = document.querySelector('.app-container');
 
     if (session) {
         // Admin sedang login
@@ -1018,6 +1019,9 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
         // Tampilkan Dashboard, sembunyikan Generator
         if (generatorView) generatorView.style.display = 'none';
         if (adminDashboardView) adminDashboardView.style.display = 'flex';
+        
+        // Lebarkan container untuk admin dashboard
+        if (appContainer) appContainer.classList.add('admin-mode');
 
         // Otomatis muat data tabel
         switchAdminTab(currentAdminTab);
@@ -1032,6 +1036,9 @@ supabaseClient.auth.onAuthStateChange((event, session) => {
         // Tampilkan Generator, sembunyikan Dashboard
         if (generatorView) generatorView.style.display = 'grid'; // asalnya display grid
         if (adminDashboardView) adminDashboardView.style.display = 'none';
+
+        // Kembalikan ukuran container semula
+        if (appContainer) appContainer.classList.remove('admin-mode');
 
         // Jika logout, kita segarkan data public generator
         fetchAndFillNextSabbathSchedule();
@@ -1198,8 +1205,9 @@ function renderAdminTable() {
 
         rowHTML += `
             <td>
-                <div class="action-btns">
+                <div class="action-btns" style="display: flex; gap: 6px;">
                     <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 11px;" onclick="openFormModal('${safeRowJson}')">Edit</button>
+                    <button class="btn btn-danger" style="padding: 4px 12px; font-size: 11px;" onclick="deleteAdminTableData('${safeRowJson}')">Hapus</button>
                 </div>
             </td>
         </tr>`;
@@ -1331,6 +1339,207 @@ async function simpanDataTabel() {
         btn.innerHTML = "Simpan Data";
         btn.disabled = false;
     }
+}
+
+async function deleteAdminTableData(rowDataStr) {
+    if (!rowDataStr) return;
+    
+    let rowData;
+    try {
+        rowData = JSON.parse(rowDataStr);
+    } catch (e) {
+        console.error("Gagal parse data baris:", e);
+        return;
+    }
+    
+    const rowId = rowData.Id || rowData.id;
+    const config = DB_SCHEMAS[currentAdminTab];
+
+    Swal.fire({
+        title: 'Hapus Data?',
+        text: "Apakah Anda yakin ingin menghapus data ini secara permanen?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal',
+        customClass: {
+            confirmButton: 'swal2-confirm-danger'
+        }
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                // Tampilkan loading
+                Swal.fire({
+                    title: 'Menghapus...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Hapus data (mendukung casing 'Id' dan 'id')
+                let deleteResult = await supabaseClient
+                    .from(config.supabaseTable)
+                    .delete()
+                    .eq('Id', rowId);
+
+                // Jika PostgreSQL menyatakan kolom 'Id' tidak ada, coba pakai 'id' kecil
+                if (deleteResult.error && deleteResult.error.message.includes('does not exist')) {
+                    deleteResult = await supabaseClient
+                        .from(config.supabaseTable)
+                        .delete()
+                        .eq('id', rowId);
+                }
+
+                if (deleteResult.error) throw deleteResult.error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: 'Data berhasil dihapus!',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                // Muat ulang data tabel
+                loadAdminTableData(config.supabaseTable);
+
+            } catch (err) {
+                console.error("Gagal menghapus data:", err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: err.message || 'Gagal menghapus data dari database.'
+                });
+            }
+        }
+    });
+}
+
+function shiftDateString(dateStr, days) {
+    if (!dateStr) return dateStr;
+    
+    // Ambil bagian tanggal YYYY-MM-DD
+    const partsT = dateStr.split('T');
+    const partsSpace = partsT[0].split(' ');
+    const datePart = partsSpace[0];
+    
+    const parts = datePart.split('-');
+    if (parts.length !== 3) return dateStr;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    
+    const dateObj = new Date(year, month, day);
+    dateObj.setDate(dateObj.getDate() + days);
+    
+    const newYear = dateObj.getFullYear();
+    const newMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const newDay = String(dateObj.getDate()).padStart(2, '0');
+    
+    const newDatePart = `${newYear}-${newMonth}-${newDay}`;
+    
+    // Pertahankan jam/menit/detik jika ada format aslinya
+    if (partsT.length > 1) {
+        return newDatePart + 'T' + partsT[1];
+    } else if (partsSpace.length > 1) {
+        return newDatePart + ' ' + partsSpace[1];
+    }
+    
+    return newDatePart;
+}
+
+async function shiftActiveTableSchedule(days) {
+    if (!currentAdminTableData || currentAdminTableData.length === 0) {
+        Swal.fire({
+            icon: 'info',
+            title: 'Tidak Ada Data',
+            text: 'Tidak ada data jadwal untuk dimodifikasi.'
+        });
+        return;
+    }
+
+    const config = DB_SCHEMAS[currentAdminTab];
+    const directionText = days > 0 ? "MUNDURKAN (tambah 7 hari)" : "MAJUKAN (kurangi 7 hari)";
+    
+    Swal.fire({
+        title: 'Geser Jadwal?',
+        text: `Apakah Anda yakin ingin ${directionText} semua jadwal (${currentAdminTableData.length} baris) pada ${config.title}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#b96a6a',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'Ya, Geser!',
+        cancelButtonText: 'Batal'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            // Tampilkan loading
+            Swal.fire({
+                title: 'Memproses...',
+                text: 'Harap tunggu, sedang memperbarui database.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            try {
+                // Lakukan pembaruan secara paralel (Promise.all)
+                const updatePromises = currentAdminTableData.map(async (row) => {
+                    const rowId = row.Id || row.id;
+                    const oldDate = row.Tanggal;
+                    const newDate = shiftDateString(oldDate, days);
+                    
+                    if (oldDate === newDate) return;
+
+                    const payload = { Tanggal: newDate };
+
+                    // Coba update dengan Primary Key 'Id' (huruf besar)
+                    let updateResult = await supabaseClient
+                        .from(config.supabaseTable)
+                        .update(payload)
+                        .eq('Id', rowId);
+
+                    // Jika PostgreSQL error karena kolom 'Id' tidak ada, coba pakai 'id' kecil
+                    if (updateResult.error && updateResult.error.message.includes('does not exist')) {
+                        updateResult = await supabaseClient
+                            .from(config.supabaseTable)
+                            .update(payload)
+                            .eq('id', rowId);
+                    }
+
+                    if (updateResult.error) throw updateResult.error;
+                });
+
+                await Promise.all(updatePromises);
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: `Semua jadwal berhasil digeser ${days > 0 ? 'mundur' : 'maju'} 1 minggu!`,
+                    timer: 2000,
+                    showConfirmButton: false
+                });
+
+                // Muat ulang data tabel
+                loadAdminTableData(config.supabaseTable);
+
+            } catch (err) {
+                console.error("Gagal menggeser jadwal:", err);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: err.message || 'Terjadi kesalahan saat memperbarui database.'
+                });
+                
+                // Segarkan kembali data dari server untuk memastikan sinkronisasi UI
+                loadAdminTableData(config.supabaseTable);
+            }
+        }
+    });
 }
 
 /* ============================================================

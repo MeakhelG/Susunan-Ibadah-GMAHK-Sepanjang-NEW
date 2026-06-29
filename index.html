@@ -592,7 +592,16 @@
             <div class="admin-panel">
                 <div class="admin-panel-header">
                     <h2 id="adminTableTitle" style="color: var(--header-title);">Tabel POS</h2>
-                    <button class="btn btn-primary" onclick="openFormModal()">+ Tambah Data</button>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;"
+                            onclick="shiftActiveTableSchedule(-7)"
+                            title="Majukan semua jadwal 1 minggu (Tanggal - 7 hari)">◀ Majukan 1 Minggu</button>
+                        <button class="btn btn-secondary" style="padding: 8px 16px; font-size: 13px;"
+                            onclick="shiftActiveTableSchedule(7)"
+                            title="Mundurkan semua jadwal 1 minggu (Tanggal + 7 hari)">Mundurkan 1 Minggu ▶</button>
+                        <button class="btn btn-primary" style="padding: 8px 16px; font-size: 13px;"
+                            onclick="openFormModal()">+ Tambah Data</button>
+                    </div>
                 </div>
                 <div class="admin-table-container">
                     <table class="admin-data-table" id="adminDataTable">
@@ -615,7 +624,7 @@
         <!-- FOOTER                     -->
         <!-- ========================== -->
         <footer class="app-footer">
-            <p>&copy; 2026 - v1.5.4. GMAHK Sepanjang. All rights reserved.</p>
+            <p>&copy; 2026 - v1.6.0. GMAHK Sepanjang. All rights reserved.</p>
             <p>Developed by Meakhel Gunawan</p>
         </footer>
     </div>
